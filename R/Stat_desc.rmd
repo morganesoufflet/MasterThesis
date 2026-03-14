@@ -1,0 +1,613 @@
+---
+title: "Descriptive Statistics"
+author: "Morgane Soufflet"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Data
+```{r libraries, echo=FALSE}
+
+library(tidyverse)
+library(sf)
+library(dplyr)
+library(patchwork)
+#Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```
+
+```{r data, echo=FALSE}
+dep_carte = st_read("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/DEPARTEMENTS_1876.shp", options = "ENCODING=UTF-8")
+data <- read.csv("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Data/Output/merged_elections.csv")
+```
+
+
+# Phylloxera Descriptive Statistics 
+### Phylloxera contamination
+```{r map, echo=FALSE, fig.width=14, fig.height=20}
+# FIRST YEAR OF CONTAMINATION
+map_data_first <- data %>% 
+  filter(first_year != 0) %>%
+  group_by(nomdepancien) %>%
+  summarise(first_year = min(first_year, na.rm = TRUE))
+
+# Join shapefile with data
+dep_carte_merged <- dep_carte %>%
+  left_join(map_data_first, by = c("dep_name" = "nomdepancien"))
+
+  # Map first_year
+p <- ggplot(dep_carte_merged) +
+        geom_sf(aes(fill = first_year)) +
+        scale_fill_viridis_c(option = "rocket", direction =1, name = "First year of contamination",
+                            breaks = seq(1863, 1888, by =2),
+                            labels = seq(1863, 1888, by =2)) +
+        theme_void() + #replaces theme_minimal() and removes the grid, axis, labels and coordinates (including the background)
+        theme(plot.title = element_text(hjust = 0.5, size = 20),
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 9),
+        legend.key.size = unit(1, "cm")) +
+        labs(title = "First year of Phylloxera contamination by department")
+
+#print(p)
+
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_firstyear.png", 
+       plot = p, width = 10, height = 8)
+
+# TOTAL CONTAMINATION
+map_data_first <- data %>% 
+  group_by(nomdepancien) %>%
+  mutate(last_year = min(an[phyllox_tot == 1], na.rm = TRUE)) %>% 
+  filter(!is.infinite(last_year)) %>% # removes never contaminated
+  summarise(last_year = first(last_year)) 
+
+# Join shapefile with data
+dep_carte_merged <- dep_carte %>%
+  left_join(map_data_first, by = c("dep_name" = "nomdepancien"))
+
+  # Map first_year
+p2 <- ggplot(dep_carte_merged) +
+        geom_sf(aes(fill = last_year)) +
+        scale_fill_viridis_c(option = "rocket", direction =1, name = "Year of total contamination",
+                            breaks = seq(1875, 1890, by =2),
+                            labels = seq(1875, 1890, by =2)) +
+        theme_void() + #replaces theme_minimal() and removes the grid, axis, labels and coordinates (including the background)
+        theme(plot.title = element_text(hjust = 0.5, size = 20),
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 9),
+        legend.key.size = unit(1, "cm")) +
+        labs(title = "Year of total contamination by department")
+
+#print(p2)
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_totalconta.png", 
+       plot = p2, width = 10, height = 8)
+
+(p / p2) + 
+  plot_annotation(theme = theme(plot.title = element_text(size = 18)))
+```
+
+
+### Contamination after the first election
+```{r map_before_1876, echo=FALSE}
+map_data_first <- data %>% 
+  filter(first_year != 0) %>%
+  filter(first_year > 1875) %>%
+  group_by(nomdepancien) %>%
+  summarise(first_year = min(first_year, na.rm = TRUE))
+
+# Join shapefile with data
+dep_carte_merged <- dep_carte %>%
+  left_join(map_data_first, by = c("dep_name" = "nomdepancien"))
+
+  # Map first_year
+p <- ggplot(dep_carte_merged) +
+        geom_sf(aes(fill = first_year)) +
+        scale_fill_viridis_c(option = "rocket", direction =1, name = "First year of contamination",
+                            breaks = seq(1876, 1888, by =1),
+                            labels = seq(1876, 1888, by =1)) +
+        theme_void() + #replaces theme_minimal() and removes the grid, axis, labels and coordinates (including the background)
+        theme(plot.title = element_text(hjust = 0.5, size = 14),
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 9),
+        legend.key.size = unit(0.8, "cm")) #+
+        #labs(title = "First Year of Phylloxera Contamination by Department")
+
+print(p)
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_firstyear_1876.png", 
+       plot = p, width = 10, height = 8)
+```
+
+```{r map_beforeafter_1876, echo=FALSE}
+map_data_first <- data %>% 
+  filter(first_year != 0) %>%
+  group_by(nomdepancien) %>%
+  summarise(first_year = min(first_year, na.rm = TRUE)) %>%
+  mutate(period = case_when(
+    first_year < 1876 ~ "Before 1876",
+    first_year > 1875 ~ "After 1875"  # everything else (never contaminated)
+  ))
+
+# Join shapefile with data
+dep_carte_merged <- dep_carte %>%
+  left_join(map_data_first, by = c("dep_name" = "nomdepancien"))
+
+  # Map first_year
+p <- ggplot(dep_carte_merged) +
+        geom_sf(aes(fill = period)) +
+        scale_fill_viridis_d(option = "rocket", direction = -1, 
+                     name = "First year of contamination") +
+        theme_void() + #replaces theme_minimal() and removes the grid, axis, labels and coordinates (including the background)
+        theme(plot.title = element_text(hjust = 0.5, size = 14),
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 9),
+        legend.key.size = unit(0.8, "cm")) #+
+        #labs(title = "First Year of Phylloxera Contamination by Department")
+
+print(p)
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_firstyear_1876.png", 
+       plot = p, width = 10, height = 8)
+```
+
+### Year of total contamination per departments
+```{r maptot_beforeafter_1876, echo=FALSE}
+
+map_data_first <- data %>% 
+  group_by(nomdepancien) %>%
+  mutate(last_year = min(an[phyllox_tot == 1], na.rm = TRUE)) %>% 
+  filter(!is.infinite(last_year)) %>% # removes never contaminated
+  summarise(last_year = first(last_year)) %>% 
+  mutate(period = case_when(
+    last_year < 1876 ~ "Before 1876",
+    last_year > 1875 ~ "After 1875"  
+  ))
+
+# Join shapefile with data
+dep_carte_merged <- dep_carte %>%
+  left_join(map_data_first, by = c("dep_name" = "nomdepancien"))
+
+  # Map first_year
+p <- ggplot(dep_carte_merged) +
+        geom_sf(aes(fill = period)) +
+        scale_fill_viridis_d(option = "rocket", direction = -1, 
+                     name = "Year of full contamination") +
+        theme_void() + #replaces theme_minimal() and removes the grid, axis, labels and coordinates (including the background)
+        theme(plot.title = element_text(hjust = 0.5, size = 14),
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 9),
+        legend.key.size = unit(0.8, "cm")) #+
+        #labs(title = "First Year of Phylloxera Contamination by Department")
+
+print(p)
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_firstyear_1876_tot.png", 
+       plot = p, width = 10, height = 8)
+```
+
+### Number of Contaminated Years per Department
+```{r contamination, echo=FALSE}
+map_data_nb <- data %>% 
+  group_by(nomdepancien) %>%
+  summarise(nb_conta = max(nb_conta,na.rm = TRUE))
+
+# Join shapefile with data
+dep_carte_merged <- dep_carte %>%
+  left_join(map_data_nb, by = c("dep_name" = "nomdepancien"))
+
+pc <- ggplot(dep_carte_merged) +
+        geom_sf(aes(fill = nb_conta)) +
+        scale_fill_viridis_c(option = "rocket", direction =-1, name = "Number contaminated of years",
+                            breaks = seq(0, 26, by =5)) +
+        theme_void() + #replaces theme_minimal() and removes the grid, axis, labels and coordinates (including the background)
+        theme(plot.title = element_text(hjust = 0.5, size = 14)) #+
+        #labs(title = "Number of years contaminated by Department")
+
+#print(pc)
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_nb_conta.png", 
+       plot = pc, width = 10, height = 8)
+
+```
+
+### Cumulative percentage of Departments contaminated by Phylloxera over the years
+```{r linegraph, echo=FALSE}
+# Cumulative nb of contaminated dep over time
+
+dep_cum <- data %>%
+  filter(an > 1861 & an < 1892) %>%
+  group_by(an) %>%
+  summarise(contaminated = sum(galet, na.rm = TRUE)) %>% 
+  arrange(an) %>%
+  mutate(cumulative_perc = cummax(contaminated)/85*100)
+
+p_cumul <- ggplot(dep_cum, aes(x = an, y = cumulative_perc)) +
+  geom_line(color = "#d73027", linewidth = 1) +
+  geom_point(color = "#d73027", size = 2) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14)) +
+  labs(x = "year",
+      y = "Percentage of departments contaminated") +
+  scale_x_continuous(breaks = seq(1860, 1891, by = 2))
+
+print(p_cumul)
+
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/cum_year_conta_dep.png",
+       plot = p_cumul, width = 10, height = 8)
+
+```
+
+## Wine production
+```{r wine_prod, echo=FALSE, fig.width=14, fig.height=20}
+# MAP WINE 1860
+map_data_1860 <- data %>% 
+  filter(an == 1860) %>%
+  group_by(nomdepancien)
+    
+# Join shapefile with data
+dep_carte_merged_1860 <- dep_carte %>%
+  left_join(map_data_1860, by = c("dep_name" = "nomdepancien"))
+
+# Map 1876 wine prod
+p1 <- ggplot(dep_carte_merged_1860) +
+        geom_sf(aes(fill = logprod_vin)) +
+        scale_fill_viridis_c(option = "rocket", direction =-1, name = "Log of wine production",
+                            breaks = seq(3, 16, by =3),
+                            labels = seq(3, 16, by =3),
+                            limits = c(3,16)) +
+        theme_void() + #replaces theme_minimal() and removes the grid, axis, labels and coordinates (including the background)
+        theme(plot.title = element_text(hjust = 0.5, size = 30)) +
+        labs(title = "1860")
+p1 <- p1 + theme(
+    plot.title = element_text(size = 12),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10),
+    legend.key.size = unit(1, "cm")
+  )
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_logprod_1860.png", 
+       plot = p1, width = 10, height = 8)
+
+###############
+# MAP WINE 1876
+###############
+map_data_1876 <- data %>% 
+  filter(an == 1876) %>%
+  group_by(nomdepancien)
+    
+# Join shapefile with data
+dep_carte_merged_1876 <- dep_carte %>%
+  left_join(map_data_1876, by = c("dep_name" = "nomdepancien"))
+
+# Map 1876 wine prod
+p2 <- ggplot(dep_carte_merged_1876) +
+        geom_sf(aes(fill = logprod_vin)) +
+        scale_fill_viridis_c(option = "rocket", direction =-1, name = "Log of wine production",
+                            breaks = seq(3, 16, by =3),
+                            labels = seq(3, 16, by =3),
+                            limits = c(3,16)) +
+        theme_void() + #replaces theme_minimal() and removes the grid, axis, labels and coordinates (including the background)
+        theme(plot.title = element_text(hjust =0.5, size = 30)) +
+        labs(title = "1876")
+
+p2 <- p2 + theme(
+    plot.title = element_text(size = 12),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10),
+    legend.key.size = unit(1, "cm")
+  )
+
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_logprod_1876.png", 
+       plot = p2, width = 10, height = 8)
+
+
+# MAP WINE 1890
+map_data_1890 <- data %>% 
+  filter(an == 1890) %>%
+  group_by(nomdepancien)
+    
+# Join shapefile with data
+dep_carte_merged_1890 <- dep_carte %>%
+  left_join(map_data_1890, by = c("dep_name" = "nomdepancien"))
+
+# Map 1890 wine prod
+p3 <- ggplot(dep_carte_merged_1890) +
+        geom_sf(aes(fill = logprod_vin)) +
+        scale_fill_viridis_c(option = "rocket", direction =-1, name = "Log of wine production",
+                            breaks = seq(3, 16, by =3),
+                            labels = seq(3, 16, by =3),
+                            limits = c(3,16)) +
+        theme_void() + #replaces theme_minimal() and removes the grid, axis, labels and coordinates (including the background)
+        theme(plot.title = element_text(hjust =0.5, size = 30)) +
+        labs(title = "1890")
+
+p3 <- p3 + theme(
+    plot.title = element_text(size = 12),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10),
+    legend.key.size = unit(1, "cm")
+  )
+
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_logprod_1890.png", 
+       plot = p3, width = 10, height = 8)
+
+# MAP WINE 1905
+map_data <- data %>% 
+  filter(an == 1905) %>%
+  group_by(nomdepancien)
+    
+# Join shapefile with data
+dep_carte_merged <- dep_carte %>%
+  left_join(map_data, by = c("dep_name" = "nomdepancien"))
+
+# Map 1890 wine prod
+p4 <- ggplot(dep_carte_merged) +
+        geom_sf(aes(fill = logprod_vin)) +
+        scale_fill_viridis_c(option = "rocket", direction =-1, name = "Log of wine production",
+                            breaks = seq(3, 16, by =3),
+                            labels = seq(3, 16, by =3),
+                            limits = c(3,16)) +
+        theme_void() + 
+        theme(plot.title = element_text(hjust = 0.5, size = 30)) +
+        labs(title = "1905")
+
+p4 <- p4 + theme(
+    plot.title = element_text(size = 12),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10),
+    legend.key.size = unit(1, "cm")
+  )
+
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_logprod_1905.png", 
+       plot = p4, width = 10, height = 8)
+
+
+(p1 | p2) / (p3 | p4) + plot_layout(guides = "collect") +
+  plot_annotation(title = "Log Wine production", 
+                  theme = theme(plot.title = element_text(size = 18)))
+```
+
+
+
+
+# Legislative Elections Descriptive Statistics
+## Nuances
+```{r nuance, echo=FALSE, fig.width=20, fig.height=26}
+# Define the election years
+years <- c(1876, 1881, 1885, 1889, 1893, 1898, 1902, 1906, 1910)
+
+# Store plots in a list
+plots <- list()
+
+for (year in years) {
+
+  #### MAP DOMINANT PARTIES
+  map_data <- data %>% 
+    filter(an == year) %>%
+    select(nomdepancien, voteG, voteCG, voteC, voteCD, voteD) %>%
+    mutate(major_party = case_when(
+      voteG  == pmax(voteG, voteCG, voteC, voteCD, voteD, na.rm=TRUE) ~ "Left",
+      voteCG == pmax(voteG, voteCG, voteC, voteCD, voteD, na.rm=TRUE) ~ "Center-Left",
+      voteC  == pmax(voteG, voteCG, voteC, voteCD, voteD, na.rm=TRUE) ~ "Center",
+      voteCD == pmax(voteG, voteCG, voteC, voteCD, voteD, na.rm=TRUE) ~ "Center-Right",
+      voteD  == pmax(voteG, voteCG, voteC, voteCD, voteD, na.rm=TRUE) ~ "Right"
+    ))
+      
+  # Join shapefile with data
+  dep_carte_merged <- dep_carte %>%
+    left_join(map_data, by = c("dep_name" = "nomdepancien"))
+
+  # Map 1889
+  p_pol <- ggplot(dep_carte_merged) +
+          geom_sf(aes(fill = major_party)) +
+          scale_fill_manual(values = c(
+            "Left"         = "#d73027",
+            "Center-Left"  = "#fc8d59",
+            "Center"       = "#fee090",
+            "Center-Right" = "#91bfdb",
+            "Right"        = "#4575b4"
+          ), 
+          breaks = c("Left", "Center-Left", "Center", "Center-Right", "Right"),
+          limits = c("Left", "Center-Left", "Center", "Center-Right", "Right"), #forces to show every party even if not present for one year,
+          drop = FALSE, 
+          name = "Dominant vote") +
+          theme_void() +
+          theme(plot.title = element_text(hjust = 0.5, size = 30)) +
+          labs(title = year)
+
+  #Apply themes
+  p_pol <- p_pol + theme(
+    plot.title = element_text(size = 10),
+    legend.title = element_text(size = 20),
+    legend.text = element_text(size = 19),
+    legend.key.size = unit(0.9, "cm")
+  )
+  # Save graph
+  ggsave(paste0("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_dominant_pol_nuance_", year, ".png"), 
+        plot = p_pol, width = 10, height = 8)
+
+  # Hide legend for all plots except the first year (to facilitate merging afterwards)
+  if (year != years[1]) {
+    p_pol <- p_pol + theme(legend.position = "none")
+  }
+  # Add graph to list
+  plots[[as.character(year)]] <- p_pol
+
+}
+
+# Combine all plots
+combined <- wrap_plots(plots, ncol = 2) & 
+  theme(legend.position = "right")
+
+combined <- combined + plot_layout(guides = "collect")
+print(combined)
+
+```
+
+
+
+## PARTIES
+### Dominant vote per party by departments
+```{r party_1876, echo=FALSE}
+# Define the election years
+years <- c(1876)
+
+for (year in years) {
+
+  #### MAP DOMINANT PARTIES
+  map_data <- data %>% 
+    filter(an == year) %>%
+    select(nomdepancien, voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, 
+         voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE) %>%
+    mutate(across(starts_with("voix"), ~as.numeric(replace(., . == "" | is.na(.), 0)))) %>%
+    mutate(major_party = case_when(
+      voixRAD     == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Radical",
+      voixREP     == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Republican",
+      voixREPCONS == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Republican Conservative",
+      voixCONST   == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Constitutional",
+      voixBON     == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Bonapartist",
+      voixMON     == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Monarchist",
+      voixLEG     == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Legitimist",
+      voixCENT    == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Center",
+      voixDIV     == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Diverse",
+      voixCONS    == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Conservative",
+      voixCED     == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Center-Right",
+      voixCLE     == pmax(voixRAD, voixREP, voixREPCONS, voixCONST, voixDIV, voixCENT, voixCED, voixBON, voixMON, voixLEG, voixCONS, voixCLE, na.rm=TRUE) ~ "Clerical"
+  ))
+      
+  # Join shapefile with data
+  dep_carte_merged <- dep_carte %>%
+    left_join(map_data, by = c("dep_name" = "nomdepancien"))
+
+  # Map
+  p_pol <- ggplot(dep_carte_merged) +
+          geom_sf(aes(fill = major_party)) +
+          scale_fill_manual(values = c(
+            # Left (1)
+            "Radical"                = "#d73027",
+            # Center-Left/Center (2-3)
+            "Republican"             = "#f46d43",
+            "Republican Conservative"= "#fdae61",
+            "Constitutional"         = "#fee090",
+            "Center"                 = "#ffffbf",
+            "Center-Right"           = "#fff176", 
+            # Unclassified (0)
+            "Diverse"                = "#cccccc",
+            # Center-Right (4)
+            "Bonapartist"            = "#abd9e9",
+            # Right (5)
+            "Monarchist"             = "#4575b4",
+            "Legitimist"             = "#313695",
+            "Conservative"           = "#1a237e",
+            "Clerical"               = "#141A61" 
+          ),
+          breaks = c("Radical", "Republican", "Republican Conservative", "Constitutional",
+             "Center", "Center-Right", "Diverse", "Conservative", 
+             "Bonapartist", "Monarchist", "Legitimist", "Clerical"),
+          name = "Dominant vote", na.value = "grey80") +
+          theme_void() 
+          theme(plot.title = element_text(hjust = 0.5, size = 14)) +
+          labs(title = year)
+  print(p_pol)
+  ggsave(paste0("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_dominant_pol_party_", year, ".png"), 
+        plot = p_pol, width = 10, height = 8)
+  #cat("Saved map for year", year, "\n")
+}
+```
+
+
+```{r party_1889, echo=FALSE}
+## 1889
+map_data_1889 <- data %>%
+  filter(an == 1889) %>%
+  select(nomdepancien, voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP, 
+         voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS, 
+         voixBOUL, voixREAC, voixBON, voixMON, voixCONS) %>%
+  mutate(across(-nomdepancien, ~as.numeric(replace(., is.na(.), 0)))) %>%
+  mutate(major_party = case_when(
+    voixSOC     == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Socialist",
+    voixRADSOC  == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Radical-Socialist",
+    voixRAD     == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Radical",
+    voixRADDIV  == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Diverse Radical",
+    voixREP     == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Republican",
+    voixOPP     == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Opposition Republican",
+    voixREPDIV  == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Diverse Republican",
+    voixDIV     == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Diverse",
+    voixLIB     == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Liberal",
+    voixREVIS   == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Revisionist",
+    voixBOUL    == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Boulangist",
+    voixREAC    == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Reactionary",
+    voixBON     == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Bonapartist",
+    voixMON     == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Monarchist",
+    voixCONS    == pmax(voixSOC, voixRADSOC, voixRAD, voixRADDIV, voixREP,
+                        voixOPP, voixREPDIV, voixDIV, voixLIB, voixREVIS,
+                        voixBOUL, voixREAC, voixBON, voixMON, voixCONS, na.rm=TRUE) ~ "Conservative"
+  ))
+
+dep_carte_merged_1889 <- dep_carte %>%
+  left_join(map_data_1889, by = c("dep_name" = "nomdepancien"))
+
+p_1889 <- ggplot(dep_carte_merged_1889) +
+  geom_sf(aes(fill = major_party)) +
+  scale_fill_manual(values = c(
+    # Left (1)
+    "Socialist"             = "#67000d",
+    "Radical-Socialist"     = "#a50026",
+    "Radical"               = "#d73027",
+    # Center-Left (2)
+    "Diverse Radical"       = "#f46d43",
+    # Center-Left/Center (2-3)
+    "Republican"            = "#fdae61",
+    "Opposition Republican" = "#fee090",
+    # Center (3)
+    "Diverse Republican"    = "#ffffbf",
+    "Diverse"               = "#fff176",
+    # Center-Right (4)
+    "Liberal"               = "#e0f3f8",
+    "Revisionist"           = "#abd9e9",
+    "Boulangist"            = "#74add1",
+    "Bonapartist"           = "#4575b4",
+    # Right (5)
+    "Monarchist"            = "#313695",
+    "Conservative"          = "#1a237e",
+    "Reactionary"           = "#141A61" 
+  ),
+  breaks = c("Socialist", "Radical-Socialist", "Radical", "Diverse Radical",
+             "Republican", "Opposition Republican", "Diverse Republican",
+             "Diverse", "Liberal", "Revisionist", "Boulangist",
+             "Bonapartist", "Monarchist", "Conservative", "Reactionary"),
+  name = "Dominant party", na.value = "grey80") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14)) +
+  labs(title = "1889")
+
+print(p_1889)
+ggsave("C:/Users/morga/OneDrive/Documents/MASTER_2/Semester_2/Mémoire/Phylloxera_Crime/Stat descriptives/map_dominant_pol_party_1889.png",
+       plot = p_1889, width = 10, height = 8)
+```
+
